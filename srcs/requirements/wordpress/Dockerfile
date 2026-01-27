@@ -1,22 +1,23 @@
-# Utilise Debian
 FROM debian:bullseye
 
-# Installation des dépendances
-RUN apt-get update && apt-get install -y \
-    php7.4-fpm php7.4-mysql curl mariadb-client \
+RUN apt update && apt install -y \
+    php7.4-fpm php7.4-mysql \
+    curl mariadb-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Téléchargement de WordPress
-RUN mkdir -p /var/www/html
+# wp-cli
+RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    -o /usr/local/bin/wp \
+    && chmod +x /usr/local/bin/wp
+
+# PHP-FPM listen on 9000 for nginx fastcgi
+RUN sed -i 's|listen = /run/php/php7.4-fpm.sock|listen = 9000|' /etc/php/7.4/fpm/pool.d/www.conf \
+    && mkdir -p /run/php
+
+COPY tools/wp_setup.sh /usr/local/bin/wp_setup.sh
+RUN chmod +x /usr/local/bin/wp_setup.sh
+
 WORKDIR /var/www/html
-RUN curl -O https://wordpress.org/latest.tar.gz \
-    && tar -xzf latest.tar.gz --strip-components=1 \
-    && rm latest.tar.gz
 
-# Copie du script d’installation
-COPY tools/setup.sh /tmp/setup.sh
-RUN chmod +x /tmp/setup.sh
-
-# Lancement de PHP-FPM au démarrage
-ENTRYPOINT ["/tmp/setup.sh"]
+ENTRYPOINT ["/usr/local/bin/wp_setup.sh"]
 CMD ["php-fpm7.4", "-F"]
