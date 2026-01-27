@@ -7,8 +7,10 @@ DB_USER="${MYSQL_USER}"
 DB_ROOT_PASS="$(cat /run/secrets/db_root_password)"
 DB_USER_PASS="$(cat /run/secrets/db_password)"
 
+MARKER="/var/lib/mysql/.inception_initialized"
+
 # Si la base est déjà initialisée (volume persistant), on ne refait rien.
-if [ -d "/var/lib/mysql/mysql" ]; then
+if [ -f "$MARKER" ]; then
   exec "$@"
 fi
 

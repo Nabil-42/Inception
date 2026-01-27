@@ -4,7 +4,7 @@ set -e
 DB_NAME="${MYSQL_DATABASE}"
 DB_USER="${MYSQL_USER}"
 DB_PASS="$(cat /run/secrets/db_password)"
-DB_HOST="mariadb"
+DB_HOST="mariadb:3306"
 
 WP_ADMIN_USER="${WP_ADMIN_USER}"
 WP_ADMIN_PASS="$(cat /run/secrets/wp_admin_password)"
@@ -19,7 +19,7 @@ WP_URL="${WP_URL}"
 
 # Attente bornée DB (pas de boucle infinie)
 for i in $(seq 1 30); do
-  if mariadb -h "${DB_HOST}" -u "${DB_USER}" -p"${DB_PASS}" -e "SELECT 1;" "${DB_NAME}" >/dev/null 2>&1; then
+  if mariadb -h  mariadb -P 3306 -u "${DB_USER}" -p"${DB_PASS}" -e "SELECT 1;" "${DB_NAME}" >/dev/null 2>&1; then
     break
   fi
   sleep 1
