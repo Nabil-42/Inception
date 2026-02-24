@@ -1,0 +1,95 @@
+
+## 🛠️ DEV_DOC
+
+```md
+# Developer Documentation
+
+This document explains the internal architecture and technical choices of the Inception project.
+
+---
+
+## Architecture Overview
+
+The infrastructure is composed of three containers:
+
+- **Nginx**
+  - Acts as the web server
+  - Handles HTTPS (TLS)
+  - Forwards PHP requests to PHP-FPM
+
+- **WordPress (PHP-FPM)**
+  - Executes PHP code
+  - Contains WordPress core files
+  - Communicates with MariaDB
+
+- **MariaDB**
+  - Stores WordPress data
+  - Uses a persistent volume
+
+All containers are connected via a dedicated Docker network.
+
+---
+
+## Docker Volumes
+
+Persistent data is stored on the host:
+
+- `/var/lib/inception_data/mariadb`
+- `/var/lib/inception_data/wordpress`
+- `/var/lib/inception_data/ssl`
+
+This ensures data persistence across container restarts.
+
+---
+
+## Docker Secrets
+
+Sensitive data is stored using Docker secrets:
+
+- Database root password
+- Database user password
+- WordPress admin password
+- WordPress user password
+
+Secrets are mounted inside containers and never hardcoded.
+
+---
+
+## Container Startup Logic
+
+### MariaDB
+
+- Initializes the database on first launch
+- Creates database and users
+- Uses a marker file to prevent reinitialization
+
+### WordPress
+
+- Waits for MariaDB availability
+- Downloads WordPress if needed
+- Generates `wp-config.php`
+- Installs WordPress using WP-CLI
+- Creates users automatically
+- Starts PHP-FPM in foreground
+
+### Nginx
+
+- Uses a self-signed TLS certificate
+- Listens on port 443 only
+- Forwards PHP requests to `wordpress:9000`
+
+---
+
+## Debug & Verification Commands
+
+```bash
+
+Check running containers: docker compose ps
+
+Check MariaDB logs: docker logs mariadb
+
+Check PHP-FPM status: docker exec -it wordpress ps aux | grep php-fpm
+
+Check database integrity: docker exec -it wordpress wp db check --allow-root
+
+Test FastCGI connection: docker exec -it nginx nc -vz wordpress 9000

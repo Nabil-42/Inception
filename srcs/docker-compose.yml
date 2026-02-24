@@ -1,7 +1,6 @@
-version: "3.8"
-
 services:
   mariadb:
+    image: mariadb
     build: ./requirements/mariadb
     container_name: mariadb
     restart: always
@@ -19,6 +18,7 @@ services:
       - inception
 
   wordpress:
+    image: wordpress
     build: ./requirements/wordpress
     container_name: wordpress
     restart: always
@@ -27,19 +27,30 @@ services:
     volumes:
       - wp_data:/var/www/html
     secrets:
+      - db_user_password
       - wp_admin_password
       - wp_user_password
     environment:
+      # DB
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_HOST: ${MYSQL_HOST}
+      MYSQL_PASSWORD_FILE: /run/secrets/db_user_password
+
+      # WordPress
+      DOMAIN_NAME: ${DOMAIN_NAME}
       WP_TITLE: ${WP_TITLE}
       WP_ADMIN_USER: ${WP_ADMIN_USER}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
       WP_ADMIN_PASSWORD_FILE: /run/secrets/wp_admin_password
       WP_USER: ${WP_USER}
+      WP_USER_EMAIL: ${WP_USER_EMAIL}
       WP_USER_PASSWORD_FILE: /run/secrets/wp_user_password
-      DOMAIN_NAME: ${DOMAIN_NAME}
     networks:
       - inception
 
   nginx:
+    image: nginx
     build: ./requirements/nginx
     container_name: nginx
     restart: always
@@ -50,6 +61,8 @@ services:
     volumes:
       - wp_data:/var/www/html:ro
       - ssl_data:/etc/nginx/ssl
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
     networks:
       - inception
 
@@ -58,21 +71,21 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /var/lib/inception_data/mariadb
+      device: ${DATA_PATH}/mariadb
       o: bind
 
   wp_data:
     driver: local
     driver_opts:
       type: none
-      device: /var/lib/inception_data/wordpress
+      device: ${DATA_PATH}/wordpress
       o: bind
 
   ssl_data:
     driver: local
     driver_opts:
       type: none
-      device: /var/lib/inception_data/ssl
+      device: ${DATA_PATH}/ssl
       o: bind
 
 secrets:

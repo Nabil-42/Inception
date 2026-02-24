@@ -1,22 +1,15 @@
 FROM debian:bullseye
 
-# Installer nginx et openssl
-RUN apt-get update && apt-get install -y nginx openssl \
+RUN apt-get update && apt-get install -y nginx openssl gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Création du certificat SSL autosigné
-RUN mkdir -p /etc/nginx/ssl
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout /etc/nginx/ssl/inception.key \
-    -out /etc/nginx/ssl/inception.crt \
-    -subj "/C=FR/ST=France/L=Paris/O=42/OU=Student/CN=${DOMAIN_NAME}"
+RUN mkdir -p /etc/nginx/ssl /var/www/html
 
-# Copier la configuration Nginx
-COPY conf/default.conf /etc/nginx/conf.d/default.conf
+COPY conf/default.conf /etc/nginx/templates/default.conf.template
+COPY tools/setup.sh /usr/local/bin/setup.sh
+RUN chmod +x /usr/local/bin/setup.sh
 
-# Créer le dossier du site
-RUN mkdir -p /var/www/html
-WORKDIR /var/www/html
+EXPOSE 443
 
-# Démarrer Nginx au premier plan
+ENTRYPOINT ["/usr/local/bin/setup.sh"]
 CMD ["nginx", "-g", "daemon off;"]

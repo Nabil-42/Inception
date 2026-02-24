@@ -1,0 +1,51 @@
+
+---
+
+## 📘 USER_DOC
+
+```md
+# User Documentation
+
+This document explains how to use the WordPress website deployed with Inception.
+
+---
+
+## Website Access
+
+The website is accessible via HTTPS only.
+
+URL:
+
+https://nabil.42.fr
+
+---
+
+## Browser
+
+Any modern browser can be used:
+- Firefox
+- Chromium
+- Chrome
+
+---
+
+## WordPress Accounts
+
+Two accounts are created automatically:
+- Administrator account
+- Author account
+
+Credentials are defined via Docker secrets during installation.
+
+---
+
+## Start / Stop
+
+To start the website:
+
+```bash
+make up
+
+To stop it:
+
+make down
