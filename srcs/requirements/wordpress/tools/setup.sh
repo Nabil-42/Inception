@@ -10,8 +10,8 @@ log() { echo "[wp] $*"; }
 if [ -n "${MYSQL_PASSWORD_FILE:-}" ] && [ -f "$MYSQL_PASSWORD_FILE" ]; then
   MYSQL_PASSWORD="$(cat "$MYSQL_PASSWORD_FILE")"
 fi
-if [ -n "${WP_ADMIN_PASSWORD_FILE:-}" ] && [ -f "$WP_ADMIN_PASSWORD_FILE" ]; then
-  WP_ADMIN_PASSWORD="$(cat "$WP_ADMIN_PASSWORD_FILE")"
+if [ -n "${WP_MASTER_PASSWORD_FILE:-}" ] && [ -f "$WP_MASTER_PASSWORD_FILE" ]; then
+  WP_MASTER_PASSWORD="$(cat "$WP_MASTER_PASSWORD_FILE")"
 fi
 if [ -n "${WP_USER_PASSWORD_FILE:-}" ] && [ -f "$WP_USER_PASSWORD_FILE" ]; then
   WP_USER_PASSWORD="$(cat "$WP_USER_PASSWORD_FILE")"
@@ -24,9 +24,9 @@ fi
 : "${MYSQL_PASSWORD:?MYSQL_PASSWORD missing}"
 : "${DOMAIN_NAME:?DOMAIN_NAME missing}"
 : "${WP_TITLE:?WP_TITLE missing}"
-: "${WP_ADMIN_USER:?WP_ADMIN_USER missing}"
-: "${WP_ADMIN_EMAIL:?WP_ADMIN_EMAIL missing}"
-: "${WP_ADMIN_PASSWORD:?WP_ADMIN_PASSWORD missing}"
+: "${WP_MASTER_USER:?WP_MASTER_USER missing}"
+: "${WP_MASTER_EMAIL:?WP_MASTER_EMAIL missing}"
+: "${WP_MASTER_PASSWORD:?WP_MASTER_PASSWORD missing}"
 : "${WP_USER:?WP_USER missing}"
 : "${WP_USER_EMAIL:?WP_USER_EMAIL missing}"
 : "${WP_USER_PASSWORD:?WP_USER_PASSWORD missing}"
@@ -70,9 +70,9 @@ if ! wp core is-installed --allow-root --path="$WP_PATH" >/dev/null 2>&1; then
   wp core install \
     --url="https://${DOMAIN_NAME}" \
     --title="${WP_TITLE}" \
-    --admin_user="${WP_ADMIN_USER}" \
-    --admin_password="${WP_ADMIN_PASSWORD}" \
-    --admin_email="${WP_ADMIN_EMAIL}" \
+    --admin_user="${WP_MASTER_USER}" \
+    --admin_password="${WP_MASTER_PASSWORD}" \
+    --admin_email="${WP_MASTER_EMAIL}" \
     --skip-email \
     --allow-root \
     --path="$WP_PATH"

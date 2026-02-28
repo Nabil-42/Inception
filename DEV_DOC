@@ -1,57 +1,68 @@
-
-## 🛠️ DEV_DOC
-
-```md
 # Developer Documentation
 
-This document explains the internal architecture and technical choices of the Inception project.
+This document describes the internal architecture, technical choices, and runtime behavior of the Inception project.
 
 ---
 
 ## Architecture Overview
 
-The infrastructure is composed of three containers:
+The infrastructure is composed of **three isolated containers**, each running a single service, in accordance with Docker best practices and the Inception subject requirements:
 
-- **Nginx**
-  - Acts as the web server
-  - Handles HTTPS (TLS)
-  - Forwards PHP requests to PHP-FPM
+- **NGINX**
+  - Acts as the single entry point of the infrastructure
+  - Handles HTTPS traffic only (TLS 1.2 / TLS 1.3)
+  - Works as a reverse proxy and forwards PHP requests to PHP-FPM
 
 - **WordPress (PHP-FPM)**
-  - Executes PHP code
-  - Contains WordPress core files
-  - Communicates with MariaDB
+  - Runs the WordPress application
+  - Executes PHP code using PHP-FPM
+  - Communicates with the MariaDB database
 
 - **MariaDB**
   - Stores WordPress data
-  - Uses a persistent volume
+  - Uses a persistent volume for database files
 
-All containers are connected via a dedicated Docker network.
+All containers communicate through a **dedicated Docker bridge network**, automatically created by Docker Compose.  
+No service is directly exposed to the host except NGINX.
 
 ---
 
 ## Docker Volumes
 
-Persistent data is stored on the host:
+Persistent data is stored on the host machine to ensure data durability across container restarts and system reboots.
 
-- `/var/lib/inception_data/mariadb`
-- `/var/lib/inception_data/wordpress`
-- `/var/lib/inception_data/ssl`
+The following directories are used:
 
-This ensures data persistence across container restarts.
+- `/home/login/data/mariadb`  
+  Stores MariaDB database files
+
+- `/home/login/data/wordpress`  
+  Stores WordPress core files and uploaded content
+
+(Optionally)
+- `/home/login/data/ssl`  
+  Stores TLS certificates if persistence is enabled
+
+This design guarantees that removing or recreating containers does not result in data loss.
 
 ---
 
 ## Docker Secrets
 
-Sensitive data is stored using Docker secrets:
+All sensitive information is managed using **Docker secrets**, never hardcoded in the repository or Dockerfiles.
 
-- Database root password
-- Database user password
-- WordPress admin password
+Secrets include:
+- MariaDB root password
+- MariaDB user password
+- WordPress administrator password
 - WordPress user password
 
-Secrets are mounted inside containers and never hardcoded.
+Secrets are:
+- created locally during evaluation
+- mounted at runtime in `/run/secrets`
+- accessed via `_FILE` environment variables
+
+No credentials are stored in the Git repository.
 
 ---
 
@@ -59,37 +70,62 @@ Secrets are mounted inside containers and never hardcoded.
 
 ### MariaDB
 
-- Initializes the database on first launch
-- Creates database and users
-- Uses a marker file to prevent reinitialization
+- Initializes the database on first startup
+- Creates the required database and users
+- Uses a marker mechanism to prevent reinitialization on restart
+- Starts the database server in foreground to comply with Docker process rules
+
+---
 
 ### WordPress
 
-- Waits for MariaDB availability
-- Downloads WordPress if needed
-- Generates `wp-config.php`
-- Installs WordPress using WP-CLI
-- Creates users automatically
-- Starts PHP-FPM in foreground
+- Waits for MariaDB availability before proceeding
+- Downloads WordPress core files if they are not already present (volume-based check)
+- Generates `wp-config.php` dynamically using environment variables and secrets
+- Installs WordPress
+- Creates both an administrator and a secondary user automatically
+- Starts PHP-FPM in foreground as the main container process
 
-### Nginx
+---
 
-- Uses a self-signed TLS certificate
-- Listens on port 443 only
-- Forwards PHP requests to `wordpress:9000`
+### NGINX
+
+- Generates or loads TLS certificates
+- Listens exclusively on port **443**
+- Enforces HTTPS connections
+- Forwards PHP requests to the WordPress container via FastCGI (`wordpress:9000`)
+- Runs in foreground as required by Docker
+
+---
+
+## Networking
+
+- A dedicated Docker bridge network is used
+- Containers communicate using service names as DNS hosts
+- The `network: host` mode is intentionally not used to preserve isolation and security
 
 ---
 
 ## Debug & Verification Commands
 
+The following commands are useful during development and evaluation:
+
 ```bash
+# Check running containers
+docker compose ps
 
-Check running containers: docker compose ps
+# Check MariaDB logs
+docker logs mariadb
 
-Check MariaDB logs: docker logs mariadb
+# Verify PHP-FPM processes
+docker exec -it wordpress pgrep -a php-fpm
 
-Check PHP-FPM status: docker exec -it wordpress ps aux | grep php-fpm
+# Check WordPress database integrity
+docker exec -it wordpress wp db check --allow-root
 
-Check database integrity: docker exec -it wordpress wp db check --allow-root
+# Test FastCGI connectivity between NGINX and WordPress
+docker exec -it nginx nc -vz wordpress 9000
 
-Test FastCGI connection: docker exec -it nginx nc -vz wordpress 9000
+#Tester TLS 1.2 and TLS 1.3
+openssl s_client -connect nabil.42.fr:443 -tls1_2
+openssl s_client -connect nabil.42.fr:443 -tls1_3

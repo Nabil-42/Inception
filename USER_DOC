@@ -1,51 +1,74 @@
+# User Documentation
+
+This document explains how to access and use the WordPress website deployed with the Inception project.
 
 ---
 
-## 📘 USER_DOC
+## Overview
 
-```md
-# User Documentation
-
-This document explains how to use the WordPress website deployed with Inception.
+The Inception project deploys a WordPress website secured with HTTPS.
+All technical aspects (containers, database, network) are handled automatically.
+This document focuses only on how to use the website as an end user.
 
 ---
 
 ## Website Access
 
-The website is accessible via HTTPS only.
+The website is accessible via **HTTPS only**.
 
-URL:
+URL: https://nabil.42.fr
 
-https://nabil.42.fr
+The domain name must be locally mapped to the virtual machine IP using the `/etc/hosts` file.
 
----
+Example: <VM_IP_ADDRESS> nabil.42.fr
 
-## Browser
 
-Any modern browser can be used:
+## Browser Compatibility
+
+The website can be accessed using any modern web browser, including:
 - Firefox
 - Chromium
-- Chrome
+- Google Chrome
+- Brave
+- Safari
 
 ---
 
 ## WordPress Accounts
 
-Two accounts are created automatically:
-- Administrator account
-- Author account
+Two WordPress accounts are created automatically during installation:
 
-Credentials are defined via Docker secrets during installation.
+- **Administrator account**
+  - Full access to the WordPress dashboard
+  - Can manage users, content, and settings
+
+- **Author account**
+  - Can create and manage posts only
+
+Credentials are **not stored in the repository** and are injected securely using Docker secrets during installation.
 
 ---
 
-## Start / Stop
+## WordPress Dashboard Access
 
-To start the website:
+To access the WordPress administration interface, go to: https://nabil.42.fr/wp-admin
 
+
+You will be redirected to the login page if not authenticated.
+
+---
+
+## Start and Stop the Website
+
+### Start and Stop the website
 ```bash
+
 make up
-
-To stop it:
-
 make down
+
+# Data Persistence
+
+All website content (pages, posts, users) is stored persistently.
+Stopping or restarting the infrastructure does not remove any data.
+
+The website remains fully functional after a restart.
