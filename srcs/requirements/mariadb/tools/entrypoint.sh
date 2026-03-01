@@ -24,7 +24,6 @@ chown -R mysql:mysql /var/lib/mysql
 
 INIT_FLAG="/var/lib/mysql/.inception_init_done"
 
-# Detect if system tables exist (more reliable than directory existence)
 SYSTEM_OK=0
 if [ -d "/var/lib/mysql/mysql" ]; then
   if ls /var/lib/mysql/mysql/user.* >/dev/null 2>&1; then
