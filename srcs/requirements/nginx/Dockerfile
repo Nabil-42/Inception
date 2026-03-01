@@ -1,15 +1,18 @@
-FROM debian:bullseye
+FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y nginx openssl gettext-base \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y nginx openssl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/nginx/ssl /var/www/html
+RUN mkdir -p /etc/nginx/ssl /var/run/nginx /var/www/wordpress
 
-COPY conf/default.conf /etc/nginx/templates/default.conf.template
-COPY tools/setup.sh /usr/local/bin/setup.sh
-RUN chmod +x /usr/local/bin/setup.sh
+RUN openssl req -x509 -nodes \
+    -out /etc/nginx/ssl/inception.crt \
+    -keyout /etc/nginx/ssl/inception.key \
+    -subj "/C=FR/ST=IDF/L=Paris/O=42/OU=42/CN=nabboud.42.fr/UID=nabboud"
+
+COPY conf/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 443
 
-ENTRYPOINT ["/usr/local/bin/setup.sh"]
 CMD ["nginx", "-g", "daemon off;"]

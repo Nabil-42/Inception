@@ -1,54 +1,24 @@
-FROM debian:bullseye
+FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y \
-    php7.4-fpm php7.4-mysql \
-    mariadb-client curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y \
+      php8.2-fpm php8.2-mysql \
+      mariadb-client curl ca-certificates \
+      unzip less && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# wp-cli
-RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-    -o /usr/local/bin/wp \
-    && chmod +x /usr/local/bin/wp
+# Install WP-CLI
+RUN curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x /usr/local/bin/wp
 
-# PHP-FPM écoute en TCP 9000
-RUN set -eux; \
-  CONF="/etc/php/7.4/fpm/pool.d/www.conf"; \
-  sed -i 's|^[[:space:]]*listen[[:space:]]*=.*|listen = 0.0.0.0:9000|' "$CONF"; \
-  sed -i '/^[[:space:]]*;[[:space:]]*listen\.allowed_clients/d' "$CONF"; \
-  sed -i '/^[[:space:]]*listen\.allowed_clients/d' "$CONF"; \
-  mkdir -p /run/php
+# PHP-FPM config
+COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
 
-WORKDIR /var/www/html
+# WordPress init script
+COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-COPY tools/setup.sh /usr/local/bin/setup.sh
-RUN chmod +x /usr/local/bin/setup.sh
+RUN mkdir -p /var/www/wordpress && chown -R www-data:www-data /var/www/wordpress
 
-ENTRYPOINT ["/usr/local/bin/setup.sh"]
-CMD ["php-fpm7.4", "-F"]
-FROM debian:bullseye
+EXPOSE 9000
 
-RUN apt-get update && apt-get install -y \
-    php7.4-fpm php7.4-mysql \
-    mariadb-client curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# wp-cli
-RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-    -o /usr/local/bin/wp \
-    && chmod +x /usr/local/bin/wp
-
-# PHP-FPM écoute en TCP 9000
-RUN set -eux; \
-  CONF="/etc/php/7.4/fpm/pool.d/www.conf"; \
-  sed -i 's|^[[:space:]]*listen[[:space:]]*=.*|listen = 0.0.0.0:9000|' "$CONF"; \
-  sed -i '/^[[:space:]]*;[[:space:]]*listen\.allowed_clients/d' "$CONF"; \
-  sed -i '/^[[:space:]]*listen\.allowed_clients/d' "$CONF"; \
-  mkdir -p /run/php
-
-WORKDIR /var/www/html
-
-COPY tools/setup.sh /usr/local/bin/setup.sh
-RUN chmod +x /usr/local/bin/setup.sh
-
-ENTRYPOINT ["/usr/local/bin/setup.sh"]
-CMD ["php-fpm7.4", "-F"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
