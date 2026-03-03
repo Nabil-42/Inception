@@ -1,18 +1,23 @@
 #!/bin/bash
 set -e
 
+# Read env vars from *_FILE if provided (Docker secrets pattern)
 file_env() {
-  local var="$1"
-  local fileVar="${var}_FILE"
-  local def="${2:-}"
+  name="$1"
+  def="${2:-}"
+  fileName="${name}_FILE"
 
-  local val="$def"
-  if [ -n "${!var:-}" ]; then
-    val="${!var}"
-  elif [ -n "${!fileVar:-}" ] && [ -f "${!fileVar}" ]; then
-    val="$(cat "${!fileVar}")"
+  if [ -n "${!name:-}" ]; then
+    export "$name"="${!name}"
+    return
   fi
-  export "$var"="$val"
+
+  if [ -n "${!fileName:-}" ] && [ -f "${!fileName}" ]; then
+    export "$name"="$(cat "${!fileName}")"
+    return
+  fi
+
+  export "$name"="$def"
 }
 
 file_env MYSQL_ROOT_PASSWORD
@@ -24,55 +29,33 @@ chown -R mysql:mysql /var/lib/mysql
 
 INIT_FLAG="/var/lib/mysql/.inception_init_done"
 
-SYSTEM_OK=0
-if [ -d "/var/lib/mysql/mysql" ]; then
-  if ls /var/lib/mysql/mysql/user.* >/dev/null 2>&1; then
-    SYSTEM_OK=1
-  elif ls /var/lib/mysql/mysql/db.* >/dev/null 2>&1; then
-    SYSTEM_OK=1
-  fi
-fi
-
-if [ ! -f "$INIT_FLAG" ] || [ "$SYSTEM_OK" -eq 0 ]; then
-  echo "Initializing MariaDB system tables..."
+# Init DB only once (first container start or empty datadir)
+if [ ! -d "/var/lib/mysql/mysql" ] || [ ! -f "$INIT_FLAG" ]; then
+  echo "Initializing MariaDB data directory..."
   rm -rf /var/lib/mysql/*
   mariadb-install-db --user=mysql --datadir=/var/lib/mysql >/dev/null
 
-  echo "Starting MariaDB temporarily for init..."
-  mysqld --user=mysql --skip-networking --socket=/run/mysqld/mysqld.sock &
-  pid="$!"
+  # Keep your SQL behavior (charset/collation + user/db/grants)
+  cat > /tmp/init.sql <<EOF
+FLUSH PRIVILEGES;
 
-  for i in {1..30}; do
-    if mariadb-admin ping --socket=/run/mysqld/mysqld.sock --silent; then
-      break
-    fi
-    sleep 1
-  done
-
-  if ! mariadb-admin ping --socket=/run/mysqld/mysqld.sock --silent; then
-    echo "MariaDB did not start correctly."
-    exit 1
-  fi
-
-  echo "Applying initial SQL..."
-  mariadb --protocol=socket --socket=/run/mysqld/mysqld.sock <<SQL
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
 
-CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
 CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
 GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
+
 FLUSH PRIVILEGES;
-SQL
+EOF
 
-  echo "Shutting down temporary MariaDB..."
-  mariadb-admin --protocol=socket --socket=/run/mysqld/mysqld.sock -p"${MYSQL_ROOT_PASSWORD}" shutdown
-  wait "$pid" || true
+  echo "Running MariaDB bootstrap (no background process)..."
+  mysqld --user=mysql --bootstrap --skip-networking --datadir=/var/lib/mysql < /tmp/init.sql
 
+  rm -f /tmp/init.sql
   touch "$INIT_FLAG"
-  chown mysql:mysql "$INIT_FLAG"
-  echo "MariaDB initialization done."
 fi
 
 echo "Starting MariaDB..."
-exec mysqld --user=mysql
+exec mysqld --user=mysql --datadir=/var/lib/mysql
