@@ -1,7 +1,7 @@
 # Inception
 
-This project has been created as part of the 42 curriculum
-by Nabboud
+*This project has been created as part of the 42 curriculum
+by Nabboud*
 
 The goal of the Inception project is to set up a complete containerized web infrastructure using Docker and Docker Compose, while respecting strict constraints defined in the subject.
 
