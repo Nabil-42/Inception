@@ -1,120 +1,100 @@
 # Inception
 
-*This project has been created as part of the 42 curriculum
-by Nabboud*
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](https://github.com/Nabil-42/Inception)
+[![Nginx](https://img.shields.io/badge/Nginx-009639?style=flat&logo=nginx&logoColor=white)](https://github.com/Nabil-42/Inception)
+[![WordPress](https://img.shields.io/badge/WordPress-21759B?style=flat&logo=wordpress&logoColor=white)](https://github.com/Nabil-42/Inception)
+[![MariaDB](https://img.shields.io/badge/MariaDB-003545?style=flat&logo=mariadb&logoColor=white)](https://github.com/Nabil-42/Inception)
+[![School](https://img.shields.io/badge/%C3%89cole_42-Paris-00babc?style=flat)](https://42.fr)
 
-The goal of the Inception project is to set up a complete containerized web infrastructure using Docker and Docker Compose, while respecting strict constraints defined in the subject.
+A multi-container Docker infrastructure deploying a WordPress site with Nginx as reverse proxy and MariaDB as the database backend.
 
-The infrastructure hosts a WordPress website, secured with HTTPS only, and focuses on:
+## Description
 
-service isolation
+`Inception` builds a fully containerized web stack from scratch using Docker Compose. Every service runs in its own container built from a custom Dockerfile based on the penultimate stable Debian release. No pre-built images (e.g., DockerHub WordPress/MariaDB) are used — all services are configured manually.
 
-secure configuration
+## Architecture
 
-data persistence
+```
+┌─────────────────────────────────────────────────────┐
+│                     Host machine                     │
+│                                                     │
+│   ┌──────────┐     ┌──────────────┐     ┌────────┐  │
+│   │  Nginx   │────▶│  WordPress   │────▶│MariaDB │  │
+│   │ :443     │     │  (php-fpm)   │     │ :3306  │  │
+│   └──────────┘     └──────────────┘     └────────┘  │
+│        │                  │                  │       │
+│   [SSL cert]        [wp-content vol]   [db vol]      │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
 
-proper orchestration of multiple containers
+| Service | Role | Port |
+|---------|------|------|
+| **Nginx** | Reverse proxy, TLS termination (TLSv1.2/1.3 only) | 443 |
+| **WordPress** | PHP-FPM application server | internal |
+| **MariaDB** | Database backend | internal |
 
-This project aims to provide a concrete understanding of how containerized services interact together in a controlled and secure environment.
+## Volumes
 
-# Architecture
+| Volume | Path in container | Purpose |
+|--------|------------------|---------|
+| `wordpress` | `/var/www/html` | WordPress files |
+| `mariadb` | `/var/lib/mysql` | Database data |
 
-The infrastructure is composed of the following services:
+Both volumes are mounted from the host at `/home/<user>/data/`.
 
-NGINX
-Acts as the single entry point, serves HTTPS traffic only (TLS 1.2 / 1.3), and works as a reverse proxy.
+## Secrets & Environment
 
-WordPress + PHP-FPM
-Runs the WordPress application and handles PHP execution.
+Credentials are never hardcoded. A `.env` file (not committed) provides:
 
-MariaDB
-Stores WordPress data in a dedicated database.
+```env
+DOMAIN_NAME=login.42.fr
+MYSQL_ROOT_PASSWORD=...
+MYSQL_DATABASE=wordpress
+MYSQL_USER=...
+MYSQL_PASSWORD=...
+WP_ADMIN_USER=...
+WP_ADMIN_PASSWORD=...
+WP_USER=...
+WP_USER_PASSWORD=...
+```
 
-Docker Volumes
-Used to persist WordPress files and MariaDB data on the host system.
+See `.env.example` for the full template.
 
-Docker Secrets
-Used to securely store sensitive information such as database and WordPress credentials.
+## Launch
 
-All services communicate through a dedicated Docker network defined in docker-compose.yml.
+```bash
+# Build and start all services
+make
 
-# Requirements
-
-Docker
-
-Docker Compose
-
-GNU Make
-
-# Instructions
-
-1) Clone the repository
-git clone <repository_url>
-cd inception
-2) Create required local directories
-mkdir -p /home/${USER}/data/mariadb
-mkdir -p /home/${USER}/data/wordpress
-mkdir -p srcs/secrets
-3) Create secrets locally (not committed)
-printf "db_password\n" > srcs/secrets/db_root_password.txt
-printf "db_password\n" > srcs/secrets/db_user_password.txt
-printf "wp_master_password\n" > srcs/secrets/wp_master_password.txt
-printf "wp_user_password\n" > srcs/secrets/wp_user_password.txt
-
-Secrets are never pushed to the repository and are created locally during evaluation.
-
-4) $Build and start the infrastructure
-
-make up
-
-Or manually:
-
-docker compose -f srcs/docker-compose.yml up -d --build
-Access
-
-Add the following line to your /etc/hosts file:
-
-<VM_IP_ADDRESS> nabil.42.fr
-
-with: 
-ip -4 addr show scope global
-sudo sh -c 'echo "<VM_IP_ADDRESS> nabil.42.fr" >> /etc/hosts'
-
-Then open your browser at:
-
-https://nabil.42.fr
-
-Stop & Cleanup
-
-Stop containers:
-
+# Stop and remove containers
 make down
 
-Stop containers, remove volumes and network:
+# Full cleanup (containers + volumes)
+make fclean
+```
 
-docker compose -f srcs/docker-compose.yml down -v --remove-orphans
+The site is accessible at `https://localhost` (or `https://<DOMAIN_NAME>` with the appropriate `/etc/hosts` entry).
 
-# Resources & AI Usage
-External resources
+## Stack
 
-Docker official documentation
+- **Docker**, **Docker Compose**
+- **Nginx** (TLS 1.2/1.3, self-signed cert via OpenSSL)
+- **WordPress** (php-fpm, no Apache)
+- **MariaDB**
+- **Debian** (penultimate stable, used as base image for all containers)
 
-Docker Compose documentation
+## 42 Project Info
 
-NGINX documentation
+| Field | Value |
+|-------|-------|
+| **Project** | Inception |
+| **Circle** | 5 |
 
-WordPress and WP-CLI documentation
+## What I Learned
 
-# AI usage
-
-AI tools were used only as a learning and assistance resource, to:
-
-- clarify Docker and Docker Compose concepts
-
-- understand error messages and debugging strategies
-
-- improve explanations and documentation wording
-
-- help for script like setup.sh ...
-
-All design choices, implementation, and final configuration were fully understood and validated by the author.
+- Writing Dockerfiles from scratch (no pre-built app images)
+- Docker Compose service orchestration, dependency ordering, and networking
+- TLS configuration in Nginx with self-signed certificates
+- Managing secrets and environment variables outside of source control
+- Volume persistence and data separation between containers
