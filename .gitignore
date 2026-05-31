@@ -1,1 +1,11 @@
-srcs/secrets/*
+# Environment variables — never commit credentials
+.env
+
+# Runtime data (volumes mounted from host)
+data/
+
+# MacOS
+.DS_Store
+
+# Editor files
+.vscode/
